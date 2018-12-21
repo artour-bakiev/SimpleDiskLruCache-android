@@ -1,76 +1,104 @@
 package bakiev.artour.simpledisklrucache.library
 
-import android.util.Log
-import android.util.LruCache
 import java.io.*
 import java.util.*
 import java.util.concurrent.Executors
-import kotlin.collections.LinkedHashMap
 
-class SimpleDiskLruCache(directory: File,
-                         private val maxObjectsToKeep: Int,
-                         maxDiskStorageSpace: Int) {
+class SimpleDiskLruCache(directory: File, maxDiskStorageSpaceInBytes: Int) {
 
     private lateinit var workingDirectory: File
-    private val diskStorageLruCache = FileLruCache(maxDiskStorageSpace)
-    private val objectsLruCache = LinkedHashMap<String, Unit>(0, 0.75F, true)
+    private val diskStorageLruCache = FileLruCache(maxDiskStorageSpaceInBytes)
     private val initializationLock = java.lang.Object()
     @Volatile
     private var initializationComplete = false
     private lateinit var logWriter: PrintWriter
 
     init {
-        val executor = Executors.newSingleThreadExecutor()
-        executor.run { init(directory) }
+        Executors.newSingleThreadExecutor().run { init(directory) }
     }
 
     /**
-     * Transaction pattern employed
-     * try {
+     * reader.use {
      *     ...
-     *     writer.start().use {
+     *     it.open().use { inputStream ->
      *         ...
-     *         it.write(...)
-     *         // OutputStream::flush should be called in order to mark transaction successful
-     *         it.flush()
+     *         inputStream.read(...)
      *     }
-     * } finally {
-     *     reader = writer.done()
      * }
      */
-    inner class Writer(private val directory: File, private val key: String) {
+    fun read(key: String): Reader? {
+        waitForInitializationComplete()
+
+        val entry = findEntry(key)
+        entry ?: return null
+
+        val file = File(entry.fileName)
+        if (!file.exists()) {
+            remove(key)
+            return null
+        }
+
+        return Reader(entry)
+    }
+
+    /**
+     * Transaction pattern - OutputStream::flush commits transaction
+     * writer.use {
+     *     ...
+     *     it.open().use { outputStream ->
+     *         ...
+     *         outputStream.write(...)
+     *         // OutputStream::flush is mandatory to complete write transaction
+     *         // But it's called automatically when the stream is closed
+     *         // it.flush()
+     *     }
+     * }
+     */
+    fun write(key: String): Writer {
+        waitForInitializationComplete()
+
+        return Writer(workingDirectory, key)
+    }
+
+    fun close() {
+        logWriter.close()
+    }
+
+    inner class Writer(private val directory: File, private val key: String) : Closeable {
+
         private var file: File? = null
         private var successful = false
 
-        fun start(): OutputStream {
-            file = File(directory, UUID.randomUUID().toString())
-            return ProxyOutputStream(FileOutputStream(file))
+        fun open(): OutputStream {
+            val file = File(directory, UUID.randomUUID().toString())
+            this.file = file
+            return ProxyOutputStream(FileOutputStream(file), file)
         }
 
-        fun done(): Reader? {
+        override fun close() {
             val file = this.file
-            file ?: return null
-
-            return if (successful) {
-                val entry = Entry(file.absolutePath, file.length())
-                val reader = Reader(entry)
-                put(key, entry)
-                reader
-            } else {
-                file.delete()
-                null
-            }
+            file ?: return
+            if (!successful) file.delete()
         }
 
-        private inner class ProxyOutputStream internal constructor(out: OutputStream)
+        private inner class ProxyOutputStream internal constructor(out: OutputStream, private val file: File)
             : FilterOutputStream(out) {
 
             override fun flush() {
                 successful = try {
                     super.flush()
+                    put(key, Entry(file.absolutePath, file.length()))
                     true
                 } catch (e: IOException) {
                     false
+                }
+            }
+
+            override fun write(b: ByteArray?) {
+                try {
+                    super.write(b)
+                } catch (e: IOException) {
+                    successful = false
                 }
             }
 
@@ -100,53 +128,15 @@ class SimpleDiskLruCache(directory: File,
         }
     }
 
-    /**
-     * Transaction pattern as well
-     * try {
-     *     ...
-     *     reader.start().use {
-     *     ...
-     *         it.read(...)
-     *     }
-     * } finally {
-     *     reader.done()
-     * }
-     */
-    class Reader internal constructor(internal val entry: Entry) {
+    class Reader internal constructor(internal val entry: Entry) : Closeable {
 
         init {
             entry.startReading()
         }
 
-        fun start(): InputStream = FileInputStream(entry.fileName)
+        fun open(): InputStream = FileInputStream(entry.fileName)
 
-        fun done() = entry.stopReading()
-    }
-
-    fun close() {
-        logWriter.close()
-    }
-
-    fun write(key: String): Writer {
-        waitForInitializationComplete()
-
-        return Writer(workingDirectory, key)
-    }
-
-    fun read(key: String): Reader? {
-        waitForInitializationComplete()
-
-        val result = createReader(key)
-        result ?: return null
-
-        val file = File(result.entry.fileName)
-        if (!file.exists()) {
-            remove(key)
-            result.done()
-            return null
-        }
-
-        return result
+        override fun close() = entry.stopReading()
     }
 
     private fun waitForInitializationComplete() {
@@ -161,11 +151,7 @@ class SimpleDiskLruCache(directory: File,
     }
 
     @Synchronized
-    private fun createReader(key: String): Reader? {
-        val entry = diskStorageLruCache.get(key)
-        entry ?: return null
-        return Reader(entry)
-    }
+    private fun findEntry(key: String): Entry? = diskStorageLruCache[key]
 
     @Synchronized
     private fun put(key: String, entry: Entry) {
@@ -176,23 +162,7 @@ class SimpleDiskLruCache(directory: File,
         }
 
         logPutOperation(key, entry)
-        objectsLruCache[key] = Unit
         diskStorageLruCache.put(key, entry)
-
-        while (objectsLruCache.size > maxObjectsToKeep) {
-            val eldestKey = keyOfEldestInstance()
-            eldestKey?.let {
-                diskStorageLruCache.remove(it)
-            }
-        }
-        if (BuildConfig.DEBUG) {
-            if (objectsLruCache[key] == null) {
-                // TODO: provide additional debug info like current size/configuration size
-                Log.e(TAG, """
-                    Improperly configured disk cache size. Item `$key` has been removed inside put operation
-                """.trimIndent())
-            }
-        }
     }
 
     @Synchronized
@@ -225,7 +195,6 @@ class SimpleDiskLruCache(directory: File,
         logWriter = PrintWriter(BufferedWriter(FileWriter(logFile)))
         // TODO: it's the right place to remove everything from disk which is not in diskStorageLruCache
         diskStorageLruCache.snapshot().forEach {
-            objectsLruCache[it.key] = Unit
             logPutOperation(it.key, it.value, false)
         }
         logWriter.flush()
@@ -274,15 +243,6 @@ class SimpleDiskLruCache(directory: File,
         }
     }
 
-    private fun keyOfEldestInstance(): String? {
-        // LinkedHashMap::eldest is hidden so lets get oldest using iterator
-        val iterator = objectsLruCache.keys.iterator()
-        if (!iterator.hasNext()) {
-            return null
-        }
-        return iterator.next()
-    }
-
     internal data class Entry(val fileName: String, val length: Long) {
         private var readers = 0
         private var deleteFile = false
@@ -314,18 +274,14 @@ class SimpleDiskLruCache(directory: File,
 
         var populating = false
 
-        override fun entryRemoved(evicted: Boolean,
-                                  key: String,
-                                  oldValue: Entry?,
-                                  newValue: Entry?) {
+        override fun entryRemoved(evicted: Boolean, key: String, oldValue: Entry, newValue: Entry?) {
             if (populating) return
             // The method is called either from SimpleDiskLruCache::put or
-            // from SimpleDiskLruCache::remove so no @Synchronized annotation needed
-            oldValue?.let {
+            // from SimpleDiskLruCache::remove so no synchronization is required
+            oldValue.let {
                 it.deleteFile()
                 logRemoveOperation(key, it)
             }
-            objectsLruCache.remove(key)
         }
 
         override fun sizeOf(key: String, value: Entry): Int = value.length.toInt()
