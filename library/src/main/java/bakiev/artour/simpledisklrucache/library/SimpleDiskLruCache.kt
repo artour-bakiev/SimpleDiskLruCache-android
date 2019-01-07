@@ -128,7 +128,7 @@ class SimpleDiskLruCache(directory: File, maxDiskStorageSpaceInBytes: Int) {
         }
     }
 
-    class Reader internal constructor(internal val entry: Entry) : Closeable {
+    class Reader internal constructor(private val entry: Entry) : Closeable {
 
         init {
             entry.startReading()
@@ -288,7 +288,6 @@ class SimpleDiskLruCache(directory: File, maxDiskStorageSpaceInBytes: Int) {
     }
 
     companion object {
-        private const val TAG = "SimpleDiskLruCache"
         private const val v1 = "DCE584D6-7786-4332-93C4-EE7B33588F4C"
         private const val logFile = "logFile"
         private const val PUT = "PUT"
