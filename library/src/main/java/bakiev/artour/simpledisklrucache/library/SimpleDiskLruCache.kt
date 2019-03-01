@@ -168,6 +168,7 @@ class SimpleDiskLruCache(directory: File, maxDiskStorageSpaceInBytes: Int) {
     @Synchronized
     private fun remove(key: String) = diskStorageLruCache.remove(key)
 
+    // @WorkingThread
     private fun init(directory: File) {
         workingDirectory = File(directory, v1)
         if (!workingDirectory.exists()) {

@@ -32,7 +32,7 @@ class SimpleDiskLruCacheUnitTest {
         val sampleBuffer = ByteArray(20) { n -> (n * 2).toByte() }
         cache.write("A").flush(sampleBuffer)
 
-        cache.read("A").`should be equal`(sampleBuffer)
+        cache.read("A").`should equal to`(sampleBuffer)
     }
 
     @Test
@@ -54,7 +54,7 @@ class SimpleDiskLruCacheUnitTest {
         cache.write("B").flush(sampleBufferB)
 
         cache.read("A").`should be null`()
-        cache.read("B").`should be equal`(sampleBufferB)
+        cache.read("B").`should equal to`(sampleBufferB)
     }
 
     @Test
@@ -73,7 +73,7 @@ class SimpleDiskLruCacheUnitTest {
                     Thread.sleep(Math.abs(r.nextLong()) % 500)
                     cache.write(n.toString()).flush(buffers[n])
                     Thread.sleep(Math.abs(r.nextLong()) % 500)
-                    cache.read(n.toString()).`should be equal`(buffers[n])
+                    cache.read(n.toString()).`should equal to`(buffers[n])
                 } catch (t: Throwable) {
                     errors.add(t.message)
                 }
@@ -96,7 +96,7 @@ class SimpleDiskLruCacheUnitTest {
         }
     }
 
-    private fun SimpleDiskLruCache.Reader?.`should be equal`(buffer: ByteArray) {
+    private fun SimpleDiskLruCache.Reader?.`should equal to`(buffer: ByteArray) {
         `should not be null`()
         use {
             it!!.open().use { inputStream ->
