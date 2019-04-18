@@ -13,22 +13,21 @@ class SimpleDiskLruCacheUnitTest {
 
     @Test
     fun `should return null from read if key doesn't exist`() {
-        val directory = temporaryFolder.newFolder()
-        val cache = SimpleDiskLruCache(directory, 10)
+        val cache = SimpleDiskLruCache(temporaryFolder.newFolder(), 10)
+
         cache.read("A").`should be null`()
     }
 
     @Test
     fun `should return non-null from write`() {
-        val directory = temporaryFolder.newFolder()
-        val cache = SimpleDiskLruCache(directory, 10)
+        val cache = SimpleDiskLruCache(temporaryFolder.newFolder(), 10)
+
         cache.write("A").`should not be null`()
     }
 
     @Test
     fun `should read what has been written`() {
-        val directory = temporaryFolder.newFolder()
-        val cache = SimpleDiskLruCache(directory, 30)
+        val cache = SimpleDiskLruCache(temporaryFolder.newFolder(), 30)
         val sampleBuffer = ByteArray(20) { n -> (n * 2).toByte() }
         cache.write("A").flush(sampleBuffer)
 

@@ -8,7 +8,7 @@ class SimpleDiskLruCache(directory: File, maxDiskStorageSpaceInBytes: Int) {
 
     private lateinit var workingDirectory: File
     private val diskStorageLruCache = FileLruCache(maxDiskStorageSpaceInBytes)
-    private val initializationLock = java.lang.Object()
+    private val initializationLock = Object()
     @Volatile
     private var initializationComplete = false
     private lateinit var logWriter: PrintWriter
