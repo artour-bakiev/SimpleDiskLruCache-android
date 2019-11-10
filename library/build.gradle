@@ -23,7 +23,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
 
     testImplementation 'junit:junit:4.12'
-    testImplementation 'org.amshove.kluent:kluent:1.23'
+    testImplementation 'org.amshove.kluent:kluent:1.49'
 }
 
 repositories {

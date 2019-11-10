@@ -13,22 +13,19 @@ open class LruCache<K, V>(maxSize: Int) {
     private var missCount: Int = 0
 
     init {
-        if (maxSize <= 0) {
-            throw IllegalArgumentException("maxSize <= 0")
-        } else {
-            this.maxSize = maxSize
-            map = LinkedHashMap(0, 0.75f, true)
-        }
+        require(maxSize > 0) { "maxSize <= 0" }
+
+        this.maxSize = maxSize
+
+        map = LinkedHashMap(0, 0.75f, true)
     }
 
     fun resize(maxSize: Int) {
-        if (maxSize <= 0) {
-            throw IllegalArgumentException("maxSize <= 0")
-        } else {
-            this.maxSize = maxSize
+        require(maxSize > 0) { "maxSize <= 0" }
 
-            trimToSize(maxSize)
-        }
+        this.maxSize = maxSize
+
+        trimToSize(maxSize)
     }
 
     operator fun get(key: K): V? {
@@ -178,6 +175,13 @@ open class LruCache<K, V>(maxSize: Int) {
     override fun toString(): String {
         val accesses = hitCount + missCount
         val hitPercent = if (accesses != 0) 100 * hitCount / accesses else 0
-        return String.format(Locale.US, "LruCache[maxSize=%d,hits=%d,misses=%d,hitRate=%d%%]", maxSize, hitCount, missCount, hitPercent)
+        return String.format(
+            Locale.US,
+            "LruCache[maxSize=%d,hits=%d,misses=%d,hitRate=%d%%]",
+            maxSize,
+            hitCount,
+            missCount,
+            hitPercent
+        )
     }
 }

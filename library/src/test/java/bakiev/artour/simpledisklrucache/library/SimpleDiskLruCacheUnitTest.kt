@@ -5,6 +5,7 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.util.*
+import kotlin.math.abs
 
 class SimpleDiskLruCacheUnitTest {
 
@@ -69,9 +70,9 @@ class SimpleDiskLruCacheUnitTest {
         for (n in 0 until numberOfThreads) {
             val t = Thread(Runnable {
                 try {
-                    Thread.sleep(Math.abs(r.nextLong()) % 500)
+                    Thread.sleep(abs(r.nextLong()) % 500)
                     cache.write(n.toString()).flush(buffers[n])
-                    Thread.sleep(Math.abs(r.nextLong()) % 500)
+                    Thread.sleep(abs(r.nextLong()) % 500)
                     cache.read(n.toString()).`should equal to`(buffers[n])
                 } catch (t: Throwable) {
                     errors.add(t.message)
@@ -100,9 +101,9 @@ class SimpleDiskLruCacheUnitTest {
         use {
             it!!.open().use { inputStream ->
                 val read = ByteArray(buffer.size)
-                inputStream.read(read).`should equal to`(buffer.size)
+                inputStream.read(read).`should be equal to`(buffer.size)
                 read.`should equal`(buffer)
-                inputStream.read().`should equal to`(-1)
+                inputStream.read().`should be equal to`(-1)
             }
         }
     }
