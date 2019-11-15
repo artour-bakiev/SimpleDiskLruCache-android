@@ -1,10 +1,10 @@
 package bakiev.artour.simpledisklrucache
 
-import android.databinding.DataBindingUtil
 import android.graphics.Bitmap
 import android.os.Bundle
-import android.support.v7.app.AppCompatActivity
 import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.databinding.DataBindingUtil
 import bakiev.artour.simpledisklrucache.databinding.MainActivityBinding
 import io.reactivex.android.schedulers.AndroidSchedulers
 import java.util.*
