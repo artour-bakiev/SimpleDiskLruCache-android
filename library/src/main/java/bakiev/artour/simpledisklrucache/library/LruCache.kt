@@ -2,7 +2,7 @@ package bakiev.artour.simpledisklrucache.library
 
 import java.util.*
 
-open class LruCache<K, V>(maxSize: Int) {
+internal open class LruCache<K, V>(maxSize: Int) {
     private val map: LinkedHashMap<K, V>
     private var size: Int = 0
     private var maxSize: Int = 0

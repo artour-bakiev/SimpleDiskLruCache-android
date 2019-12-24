@@ -6,6 +6,7 @@ import bakiev.artour.simpledisklrucache.library.SimpleDiskLruCache
 import dagger.Component
 import dagger.Module
 import dagger.Provides
+import java.util.*
 import javax.inject.Singleton
 
 @Singleton
@@ -23,6 +24,7 @@ class SampleApplication : Application() {
         .build()
 
     companion object {
+        private val uuid = UUID.fromString("740B2493-235E-4B6A-B1E6-469527AB90EA")
         private const val maxDiskStorageSpaceInBytes = 1024 * 1024 * 10
 
         fun appComponent(context: Context): ApplicationComponent {
@@ -36,7 +38,8 @@ class SampleApplication : Application() {
 
         @[Provides Singleton]
         fun provideDiskCache(): SimpleDiskLruCache = SimpleDiskLruCache(
-            context.cacheDir,
+            context,
+            uuid,
             maxDiskStorageSpaceInBytes
         )
     }
